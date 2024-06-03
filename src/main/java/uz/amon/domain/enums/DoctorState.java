@@ -3,5 +3,5 @@ package uz.amon.domain.enums;
 public enum DoctorState
 {
     START,
-    FINISH
+    COMPLAINT_ANSWER, FINISH
 }

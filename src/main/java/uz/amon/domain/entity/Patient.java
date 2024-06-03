@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import uz.amon.domain.enums.PatientLanguage;
 import uz.amon.domain.enums.PatientState;
 
 @Data
@@ -30,6 +31,9 @@ public class Patient
     @Enumerated(EnumType.STRING)
     PatientState state;
 
-    @OneToOne
+    @Enumerated(EnumType.STRING)
+    PatientLanguage language;
+
+    @OneToOne(cascade=CascadeType.ALL)
     Complaint complaint;
 }
