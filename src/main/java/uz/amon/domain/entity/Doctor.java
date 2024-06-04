@@ -5,30 +5,28 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import uz.amon.domain.enums.ComplaintStatus;
+import uz.amon.domain.enums.DoctorState;
 
 @Data
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 
 @Entity
-public class Complaint
+public class Doctor
 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @OneToOne
-    Photo photo;
+    String firstname;
 
-    String message;
+    String lastname;
 
-    Long writerId;
-
-    Long doctorId;
+    Long chatId;
 
     @Enumerated(EnumType.STRING)
-    ComplaintStatus status;
+    DoctorState state;
 
-    String answerOfDoctor;
+//    @OneToOne
+//    Photo photo;
 }
