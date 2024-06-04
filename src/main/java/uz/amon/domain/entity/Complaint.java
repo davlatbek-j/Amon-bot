@@ -21,6 +21,7 @@ public class Complaint
     @OneToOne
     Photo photo;
 
+    @Column(length = 500)
     String message;
 
     Long writerId;
@@ -30,5 +31,6 @@ public class Complaint
     @Enumerated(EnumType.STRING)
     ComplaintStatus status;
 
+    @Column(length = 500)
     String answerOfDoctor;
 }

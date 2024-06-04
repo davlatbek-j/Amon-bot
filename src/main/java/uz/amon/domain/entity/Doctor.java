@@ -29,4 +29,13 @@ public class Doctor
 
 //    @OneToOne
 //    Photo photo;
+
+    public Doctor(String firstname, String lastname)
+    {
+        this.firstname = firstname;
+        this.lastname = lastname;
+    }
+
+    Long currentComplaintId;
+
 }

@@ -1,16 +1,20 @@
 package uz.amon.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+
+import org.springframework.data.jpa.repository.Query;
 import uz.amon.domain.entity.Patient;
+import uz.amon.domain.enums.PatientState;
 
-import java.util.Optional;
+public interface PatientRepository extends JpaRepository<Patient, Long>
+{
 
-@Repository
-public interface PatientRepository extends JpaRepository<Patient, Long> {
-
-    Optional<Patient> findByPhone(String phone);
+    @Query(value = "SELECT state FROM patient where chat_id=:chatId",nativeQuery = true)
+    PatientState findPatientStateByChatId(Long chatId);
 
     Patient findByChatId(Long chatId);
 
+    boolean existsByChatId(long chatId);
+
+    Optional<Patient> findByPhone(String phone);
 }
