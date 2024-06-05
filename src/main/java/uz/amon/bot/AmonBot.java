@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
@@ -259,7 +260,7 @@ public class AmonBot extends TelegramLongPollingBot
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         List<KeyboardRow> rowList = new ArrayList<>();
         KeyboardButton button = new KeyboardButton();
-
+        markup.setResizeKeyboard(true);
         if (fromDb.getLanguage().equals(PatientLanguage.UZ))
             button.setText("Telefon raqamni yuborish");
         else if (fromDb.getLanguage().equals(PatientLanguage.RU))
@@ -555,9 +556,9 @@ public class AmonBot extends TelegramLongPollingBot
             fromDb.setState(PatientState.LAST_NAME);
             patientRepo.save(fromDb);
 
+
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(chatId);
-
             if (fromDb.getLanguage().equals(PatientLanguage.UZ))
                 sendMessage.setText("Familyangizni kiriting");
             else if (fromDb.getLanguage().equals(PatientLanguage.RU))

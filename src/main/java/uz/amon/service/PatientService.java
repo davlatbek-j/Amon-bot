@@ -27,7 +27,6 @@ public class PatientService {
             return new ApiResponse<>(null, "This phone number is already exists");
         }
         Patient patient = modelMapper.map(patientCreateDTO, Patient.class);
-        patient.setState(PatientState.DEFAULT);
         patient = patientRepository.save(patient);
         PatientResponseDTO responseDTO = modelMapper.map(patient, PatientResponseDTO.class);
         return new ApiResponse<>(responseDTO, "success");
