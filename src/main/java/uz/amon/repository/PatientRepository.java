@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Query;
 import uz.amon.domain.entity.Patient;
 import uz.amon.domain.enums.PatientState;
 
+import java.util.Optional;
+
 public interface PatientRepository extends JpaRepository<Patient, Long>
 {
 
