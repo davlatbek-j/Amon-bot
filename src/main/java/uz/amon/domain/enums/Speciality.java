@@ -1,0 +1,35 @@
+package uz.amon.domain.enums;
+
+public enum Speciality {
+    LOR,
+    XIRURG,
+    DERMATOLOG,
+    NERVPATOLOG,
+    STAMATOLOG,
+
+    ANESTEZIOLOG,
+    KARDIOLOG ,
+    ENDOKRINOLOG,
+    GASTROENTEROLOG,
+    GINEKOLOG,
+    GERIATR,
+    NEONATOLOG,
+    NEFROLOG,
+    ONKOLOG,
+    OFTALMOLOG, /*(ko'z doktori)*/
+    ORTOPED,
+    PEDIATR,
+    PSIXIATR,
+    PULMONOLOG,
+    REVMATOLOG,
+    UROLOG,
+    ALLERGOLOG,
+    IMMUNOLOG,
+    RADIOLOG,
+    INFEKTSIONIST,
+    GEMATOLOG,
+    TOKSIKOLOG,
+    FIZIATR,
+    DIETOLOG,
+
+}
