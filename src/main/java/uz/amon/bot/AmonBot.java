@@ -5,7 +5,9 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.ForwardMessage;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.*;
@@ -75,7 +77,6 @@ public class AmonBot extends TelegramLongPollingBot
     @Override
     public void onUpdateReceived(Update update)
     {
-
         if (update.hasMessage())
         {
             Long chatId = update.getMessage().getChatId();
@@ -84,7 +85,9 @@ public class AmonBot extends TelegramLongPollingBot
                 doctorHandler(update);
             else
                 patientHandler(update);
-        } else if (update.hasCallbackQuery())
+
+        }
+        else if (update.hasCallbackQuery())
         {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             Long chatId = callbackQuery.getMessage().getChatId();
@@ -99,7 +102,15 @@ public class AmonBot extends TelegramLongPollingBot
                     case CHOOSE_DOCTOR:
                         patientSelectDoctor(update);
                         break;
+                    case ANSWER_RECIVED:
+                        patientReplyToDoctor(update);
+                        break;
                 }
+                if (callbackQuery.getData().equals("new-complaint"))
+                {
+                    patientNewComplaint(update);
+                }
+
             } else if (doctorService.isDoctor(chatId)) // TODO for Doctor
             {
                 Doctor fromDb = doctorRepo.findByChatId(chatId);
@@ -109,9 +120,78 @@ public class AmonBot extends TelegramLongPollingBot
                     case START:
                         doctorAcceptHandler(update);
                         break;
+                    case REPLY_TO_PATIENT:
+                        doctorReplyHandler(update);
                 }
+                String data = callbackQuery.getData();
+
             }
         }
+    }
+
+    private void patientNewComplaint(Update update) throws TelegramApiException
+    {
+        CallbackQuery callbackQuery = update.getCallbackQuery();
+        Long chatId = callbackQuery.getMessage().getChatId();
+        Patient fromDb = patientRepo.findByChatId(chatId);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+
+        if (fromDb.getLanguage().equals(PatientLanguage.UZ))
+            sendMessage.setText("Pastdan kerakli shifokorni tanlang");
+        else if (fromDb.getLanguage().equals(PatientLanguage.RU))
+            sendMessage.setText("Выберите ниже нужного вам врача");
+
+        List<Doctor> doctorList = doctorService.getList();
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> inlineButtons = new ArrayList<>();
+
+        for (Doctor doctor : doctorList)
+        {
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(doctor.getFirstname() + " " + doctor.getLastname());
+            button.setCallbackData(doctor.getId().toString());
+            row.add(button);
+            inlineButtons.add(row);
+        }
+
+        inlineKeyboardMarkup.setKeyboard(inlineButtons);
+        sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+
+        execute(sendMessage);
+
+        fromDb.setState(PatientState.CHOOSE_DOCTOR);
+        patientRepo.save(fromDb);
+    }
+
+    private void patientReplyToDoctor(Update update) throws TelegramApiException
+    {
+        CallbackQuery callbackQuery = update.getCallbackQuery();
+        Long chatId = callbackQuery.getMessage().getChatId();
+        Patient patientFromDb = patientRepo.findByChatId(chatId);
+
+        String data = callbackQuery.getData();
+
+        if (data.contains("reply-message-to-doctor"))
+        {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+
+            if (patientFromDb.getLanguage().equals(PatientLanguage.UZ))
+                sendMessage.setText("Xabar yuboring");
+            else if (patientFromDb.getLanguage().equals(PatientLanguage.RU))
+                sendMessage.setText("Напиши сообщение");
+
+            patientFromDb.setState(PatientState.REPLY_MESSAGE);
+            Long doctorChatId = Long.valueOf( data.replaceAll("reply-message-to-doctor", ""));
+            patientFromDb.setCurrentReplyDoctorChatId(doctorChatId);
+            patientRepo.save(patientFromDb);
+            execute(sendMessage);
+        }
+
     }
 
 
@@ -181,7 +261,7 @@ public class AmonBot extends TelegramLongPollingBot
         KeyboardButton button = new KeyboardButton();
 
         if (fromDb.getLanguage().equals(PatientLanguage.UZ))
-            button.setText("Kontakt yuborish");
+            button.setText("Telefon raqamni yuborish");
         else if (fromDb.getLanguage().equals(PatientLanguage.RU))
             button.setText("Отправить номер телефона");
 
@@ -192,6 +272,7 @@ public class AmonBot extends TelegramLongPollingBot
         row.add(button);
         rowList.add(row);
         markup.setKeyboard(rowList);
+        markup.setResizeKeyboard(true);
         sendMessage.setReplyMarkup(markup);
 
         execute(sendMessage);
@@ -227,8 +308,103 @@ public class AmonBot extends TelegramLongPollingBot
                 break;
             case COMPLAINT_TEXT:
                 patientComplaintTextHandler(update);
+            case REPLY_MESSAGE:
+                patientReplyMessageHandler(update);
         }
 
+    }
+
+    private void patientReplyMessageHandler(Update update) throws TelegramApiException
+    {
+        Message message = update.getMessage();
+        Long patientChatId = update.getMessage().getChatId();
+        Patient patientFromDb = patientRepo.findByChatId(patientChatId);
+        Long doctorChatId = patientFromDb.getCurrentReplyDoctorChatId();
+
+        Doctor doctorFromDb = doctorRepo.findByChatId(doctorChatId);
+        doctorFromDb.setState(DoctorState.REPLY_TO_PATIENT);
+        doctorRepo.save(doctorFromDb);
+
+
+        SendMessage doctorSendMessage = new SendMessage();
+        doctorSendMessage.setChatId(doctorChatId);
+        doctorSendMessage.setText("Новое сообщение от пациента :"+patientFromDb.getFirstname()+" "+patientFromDb.getLastname()+
+                                  "\nНомер телефона: +"+ patientFromDb.getPhone() );
+        execute(doctorSendMessage);
+
+
+        if (message.hasText()) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(doctorChatId);
+            sendMessage.setText(message.getText());
+
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText("javob yozish");
+            button.setCallbackData("reply-to-patient"+patientChatId);
+            row.add(button);
+            keyboard.add(row);
+            markup.setKeyboard(keyboard);
+            sendMessage.setReplyMarkup(markup);
+
+            execute(sendMessage);
+
+        } else if (message.hasPhoto()) {
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(String.valueOf(doctorChatId));
+            sendPhoto.setPhoto(  new InputFile(message.getPhoto().get(0).getFileId()));
+            if (message.getCaption() != null) {
+                sendPhoto.setCaption(message.getCaption());
+            }
+
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText("javob yozish");
+            button.setCallbackData("reply-to-patient"+patientChatId);
+            row.add(button);
+            keyboard.add(row);
+            markup.setKeyboard(keyboard);
+            sendPhoto.setReplyMarkup(markup);
+
+
+            execute(sendPhoto);
+        } else if (message.hasDocument()) {
+            SendDocument sendDocument = new SendDocument();
+            sendDocument.setChatId(String.valueOf(doctorChatId));
+            sendDocument.setDocument( new InputFile(message.getDocument().getFileId()));
+            if (message.getCaption() != null) {
+                sendDocument.setCaption(message.getCaption());
+            }
+            InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+            List<InlineKeyboardButton> row = new ArrayList<>();
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText("javob yozish");
+            button.setCallbackData("reply-to-patient"+patientChatId);
+            row.add(button);
+            keyboard.add(row);
+            markup.setKeyboard(keyboard);
+            sendDocument.setReplyMarkup(markup);
+
+            execute(sendDocument);
+        }
+
+
+        SendMessage patientSendMessage = new SendMessage();
+        patientSendMessage.setChatId(patientChatId);
+
+        if (patientFromDb.getLanguage().equals(PatientLanguage.UZ))
+            patientSendMessage.setText("Xabaringiz yuborildi");
+        else
+            patientSendMessage.setText("Ваше сообщение было отправлено");
+
+        execute(patientSendMessage);
+        patientFromDb.setState(PatientState.WAIT_ANSWER_DOCTOR);
+        patientRepo.save(patientFromDb);
     }
 
     private void patientComplaintTextHandler(Update update) throws TelegramApiException
@@ -298,6 +474,8 @@ public class AmonBot extends TelegramLongPollingBot
     {
         Message message = update.getMessage();
         Long chatId = message.getChatId();
+        Patient patientFromDb = patientRepo.findByChatId(chatId);
+
         if (message.hasPhoto())
         {
             String fileId = message.getPhoto().stream()
@@ -320,7 +498,6 @@ public class AmonBot extends TelegramLongPollingBot
             Photo photo = new Photo(fileName, targetPath, "http://localhost:8080/complaint/image/bla-bla");
             Photo saved = photoRepo.save(photo);
 
-            Patient patientFromDb = patientRepo.findByChatId(chatId);
             Complaint complaintOfPatient = patientFromDb.getComplaint();
             complaintOfPatient.setPhoto(saved);
             complaintOfPatient.setStatus(ComplaintStatus.CREATED_NOT_SENDED);
@@ -341,7 +518,10 @@ public class AmonBot extends TelegramLongPollingBot
         {
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(chatId);
-            sendMessage.setText("ИЗОБРАЖЕНИЕ не отправлено!!!");
+            if (patientFromDb.getLanguage().equals(PatientLanguage.RU))
+                sendMessage.setText("Пожалуйста, пришлите фото анализа!");
+            else if (patientFromDb.getLanguage().equals(PatientLanguage.UZ))
+                sendMessage.setText("Iltimos analiz rasmini yuboring!");
             execute(sendMessage);
         }
     }
@@ -430,7 +610,7 @@ public class AmonBot extends TelegramLongPollingBot
         Long chatId = update.getMessage().getChatId();
         sendMessage.setChatId(chatId);
         sendMessage.setText("Assalomu alaykum botga xush kelibsiz , Tilni tanlang  \n \n" +
-                "Привет, добро пожаловать в бот, выбираем язык");
+                            "Привет, добро пожаловать в бот, выбираем язык");
 
         Patient patient = new Patient();
         if (patientRepo.existsByChatId(chatId))
@@ -544,20 +724,31 @@ public class AmonBot extends TelegramLongPollingBot
     }
 
     //TODO ==========================================================================================
+    //TODO ==========================================================================================
+    //TODO ==========================================================================================
+
+
     private void doctorHandler(Update update) throws TelegramApiException
     {
         Message message = update.getMessage();
         Long doctorChatId = message.getChatId();
         Doctor fromDb = doctorRepo.findByChatId(doctorChatId);
+        System.err.println("==========+ fromDb = " + fromDb);
 
         if (message.hasText() && message.getText().equals("/start"))
         {
-            fromDb.setState(DoctorState.START);
             if (!doctorRepo.existsByChatId(doctorChatId))
                 doctorRepo.save(fromDb);
+            else
+            {
+                fromDb.setState(DoctorState.START);
+                doctorRepo.save(fromDb);
+            }
+
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(doctorChatId);
-            sendMessage.setText("Добро пожаловать на страницу врача");
+            sendMessage.setText("Добро пожаловать на страницу врача \n" +
+                                "Если вы получите какое-либо сообщение от пациентов, оно появится здесь.");
             execute(sendMessage);
             return;
         }
@@ -576,15 +767,46 @@ public class AmonBot extends TelegramLongPollingBot
                 SendMessage patientMessage = new SendMessage();
                 Patient patient = patientRepo.findById(complaint.getWriterId()).get();
                 patient.setComplaint(null);
+                patient.setState(PatientState.ANSWER_RECIVED);
                 patientRepo.save(patient);
 
                 fromDb.setCurrentComplaintId(null);
+                fromDb.setState(DoctorState.START);
                 doctorRepo.save(fromDb);
 
-                patientMessage.setChatId( patient.getChatId() );
-                patientMessage.setText("Ответ врача:\n"+answerOfDoctor);
-                execute(patientMessage);
+                patientMessage.setChatId(patient.getChatId());
+                patientMessage.setText("Ответ врача:\n" + answerOfDoctor);
 
+                InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+                List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+                List<InlineKeyboardButton> row1 = new ArrayList<>();
+                List<InlineKeyboardButton> row2 = new ArrayList<>();
+                InlineKeyboardButton button1 = new InlineKeyboardButton();
+                InlineKeyboardButton button2 = new InlineKeyboardButton();
+
+
+                if (patient.getLanguage().equals(PatientLanguage.UZ))
+                {
+                    button1.setText("Shifokorga xabar yozish");
+                    button2.setText("Yangi murojaat qoldrish");
+                }
+                else if (patient.getLanguage().equals(PatientLanguage.RU))
+                {
+                    button1.setText("Напишите сообщение врачу");
+                    button2.setText("Подать новую заявку");
+                }
+
+                button1.setCallbackData("reply-message-to-doctor"+fromDb.getChatId());
+                button2.setCallbackData("new-complaint");
+                row1.add(button1);
+                row2.add(button2);
+
+                keyboard.add(row1);
+                keyboard.add(row2);
+
+                markup.setKeyboard(keyboard);
+                patientMessage.setReplyMarkup(markup);
+                execute(patientMessage);
 
 
                 SendMessage doctorMessage = new SendMessage();
@@ -593,6 +815,9 @@ public class AmonBot extends TelegramLongPollingBot
                 execute(doctorMessage);
                 break;
             }
+            case WRITE_MESSAGE_TO_PATIENT:
+                doctorReplyMessageToPatientHandler(update);
+
 
         }
 
@@ -606,15 +831,15 @@ public class AmonBot extends TelegramLongPollingBot
 
         String data = callbackQuery.getData();
 
-        System.err.println("Call-back : "+data);
+        System.err.println("Call-back : " + data);
 
-        Doctor fromDb = doctorRepo.findByChatId(doctorChatId);
+        Doctor doctorFromDb = doctorRepo.findByChatId(doctorChatId);
 
-        System.err.println("fromDb.getCurrentComplaintId() = " + fromDb.getCurrentComplaintId());
+        System.err.println("fromDb.getCurrentComplaintId() = " + doctorFromDb.getCurrentComplaintId());
 
-        if (fromDb.getCurrentComplaintId()!=null)
+        if (doctorFromDb.getCurrentComplaintId() != null)
         {
-            Long currentComplaintId = fromDb.getCurrentComplaintId();
+            Long currentComplaintId = doctorFromDb.getCurrentComplaintId();
 
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(doctorChatId);
@@ -635,14 +860,14 @@ public class AmonBot extends TelegramLongPollingBot
             complaint.setStatus(ComplaintStatus.DOCTOR_ACCEPTED_NOT_ANSWERED);
             complaintRepo.save(complaint);
 
-            fromDb.setState(DoctorState.COMPLAINT_ANSWER);
-            fromDb.setCurrentComplaintId(complaintId);
-            System.err.println("OK : fromDb.getCurrentComplaintId() = " + fromDb.getCurrentComplaintId());
-            doctorRepo.save(fromDb);
+            doctorFromDb.setState(DoctorState.COMPLAINT_ANSWER);
+            doctorFromDb.setCurrentComplaintId(complaintId);
+            System.err.println("OK : fromDb.getCurrentComplaintId() = " + doctorFromDb.getCurrentComplaintId());
+            doctorRepo.save(doctorFromDb);
 
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(doctorChatId);
-            sendMessage.setText("Запишите свой ответ для пациента :"+complaint.getMessage());
+            sendMessage.setText("Запишите свой ответ для пациента :\n" + complaint.getMessage());
 
             execute(sendMessage);
             return;
@@ -656,16 +881,98 @@ public class AmonBot extends TelegramLongPollingBot
             Complaint complaint = complaintRepo.findById(complaintId).get();
             complaint.setStatus(ComplaintStatus.REJECTED_BY_DOCTOR);
             complaintRepo.save(complaint);
-            SendMessage sendMessage = new SendMessage();
 
+            SendMessage patientMessage = new SendMessage();
             Patient patient = patientRepo.findById(complaint.getWriterId()).get();
-            sendMessage.setChatId(patient.getChatId());
-            sendMessage.setText(complaint.getMessage() + "\n -Извини , Врач не может ответить на ваш вопрос ");
-            fromDb.setCurrentComplaintId(null);
-            doctorRepo.save(fromDb);
+            patient.setComplaint(null);
+            patient.setState(PatientState.START);
+            patientRepo.save(patient);
 
-            execute(sendMessage);
+            patientMessage.setChatId(patient.getChatId());
+            if (patient.getLanguage().equals(PatientLanguage.RU))
+                patientMessage.setText(complaint.getMessage() + "\n -Извини , Врач не может ответить на ваш вопрос");
+            else if (patient.getLanguage().equals(PatientLanguage.UZ))
+                patientMessage.setText(complaint.getMessage() + "\n -Kechirasiz, shifokor sizning savolingizga javob bera olmaydi");
+
+
+            doctorFromDb.setCurrentComplaintId(null);
+            doctorFromDb.setState(DoctorState.START);
+            doctorRepo.save(doctorFromDb);
+
+            execute(patientMessage);
+
+            SendMessage doctorMessage= new SendMessage();
+            doctorMessage.setChatId(doctorChatId);
+            doctorMessage.setText("Этот запрос пациента был отменен : \n" + complaint.getMessage());
+            execute(doctorMessage);
         }
 
     }
+
+    private void doctorReplyHandler(Update update) throws TelegramApiException
+    {
+        CallbackQuery callbackQuery = update.getCallbackQuery();
+        Long doctorChatId = callbackQuery.getMessage().getChatId();
+        String data = callbackQuery.getData();
+        if (data.contains("reply-to-patient"))
+        {
+            Long patientChatId = Long.valueOf(data.replaceAll("reply-to-patient",""));
+
+            Patient patientFromDb = patientRepo.findByChatId(patientChatId);
+
+            SendMessage sendMessageDoctor = new SendMessage();
+            sendMessageDoctor.setChatId(doctorChatId);
+            sendMessageDoctor.setText("Напишите ответ на: "+patientFromDb.getFirstname()+" "+patientFromDb.getLastname());
+            execute(sendMessageDoctor);
+
+            Doctor doctorFromDb = doctorRepo.findByChatId(doctorChatId);
+            doctorFromDb.setState(DoctorState.WRITE_MESSAGE_TO_PATIENT);
+            doctorFromDb.setCurrentReplyPatientChatId(patientChatId);
+            doctorRepo.save(doctorFromDb);
+        }
+    }
+
+    private void doctorReplyMessageToPatientHandler(Update update) throws TelegramApiException
+    {
+        Message message = update.getMessage();
+        Long chatId = message.getChatId();
+        Doctor doctorFromDb = doctorRepo.findByChatId(chatId);
+
+        Long currentReplyPatientChatId = doctorFromDb.getCurrentReplyPatientChatId();
+        Patient patientFromDb = patientRepo.findByChatId(currentReplyPatientChatId);
+
+        String doctorText = message.getText();
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(currentReplyPatientChatId);
+        sendMessage.setText("Ответ от врача:\n"+doctorText);
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+
+        InlineKeyboardButton button = new InlineKeyboardButton();
+
+        if (patientFromDb.getLanguage().equals(PatientLanguage.UZ))
+            button.setText("Yangi murojaat qoldrish");
+        else
+            button.setText("Подать новую заявку");
+        button.setCallbackData("new-complaint");
+        row1.add(button);
+        keyboard.add(row1);
+        markup.setKeyboard(keyboard);
+        sendMessage.setReplyMarkup(markup);
+        execute(sendMessage);
+
+        SendMessage sendMessageDoctor = new SendMessage();
+        sendMessageDoctor.setChatId(chatId);
+        sendMessageDoctor.setText("Сообщение доставлено");
+        execute(sendMessageDoctor);
+
+
+        doctorFromDb.setState(DoctorState.START);
+        doctorFromDb.setCurrentReplyPatientChatId(null);
+        doctorRepo.save(doctorFromDb);
+    }
+
 }

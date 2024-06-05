@@ -45,7 +45,6 @@ public class PatientService {
         Patient patient = optionalPatient.get();
         patient.setFirstname(patientUpdateDTO.getFirstname());
         patient.setLastname(patientUpdateDTO.getLastname());
-        patient.setSurname(patientUpdateDTO.getSurname());
         patient.setPhone(patientUpdateDTO.getPhone());
         PatientResponseDTO responseDTO = modelMapper.map(patientRepository.save(patient), PatientResponseDTO.class);
         return new ApiResponse<>(responseDTO, "success");

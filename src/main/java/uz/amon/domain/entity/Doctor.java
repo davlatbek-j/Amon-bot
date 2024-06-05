@@ -27,6 +27,8 @@ public class Doctor
     @Enumerated(EnumType.STRING)
     DoctorState state;
 
+    private Long currentReplyPatientChatId;
+
 //    @OneToOne
 //    Photo photo;
 
