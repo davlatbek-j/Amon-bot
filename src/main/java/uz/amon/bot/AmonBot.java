@@ -245,14 +245,14 @@ public class AmonBot extends TelegramLongPollingBot
             {
                 fromDb.setLanguage(PatientLanguage.UZ);
                 patientRepo.save(fromDb);
-                sendMessage.setText("Telefon raqamni yuborish tugmasini bosing");
+                sendMessage.setText("Siz bilan bog'lana olishimiz uchun «Telefon raqamni yuborish» tugmasini bosing");
                 break;
             }
             case "ru":
             {
                 fromDb.setLanguage(PatientLanguage.RU);
                 patientRepo.save(fromDb);
-                sendMessage.setText("Нажмите кнопку «Отправить номер телефона».");
+                sendMessage.setText("Нажмите «Отправить номер телефона», чтобы мы могли связаться с вами.");
                 break;
             }
         }
