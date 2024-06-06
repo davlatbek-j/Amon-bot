@@ -4,5 +4,6 @@ public enum DoctorState
 {
     START,
     COMPLAINT_ANSWER,
-    FINISH
+    REPLY_TO_PATIENT,
+    WRITE_MESSAGE_TO_PATIENT, FINISH
 }

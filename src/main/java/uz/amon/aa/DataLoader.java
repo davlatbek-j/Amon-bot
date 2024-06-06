@@ -22,7 +22,7 @@ public class DataLoader implements CommandLineRunner
         Doctor doctor = new Doctor();
         doctor.setChatId(1762041853L);
         doctor.setFirstname("Davlatbek");
-        doctor.setLastname("Jamoliddinov");
+        doctor.setLastname("Doctor");
         list.add(doctor);
         list.add(new Doctor("Anna","Stone"));
         list.add(new Doctor("Jenifer","Lopes"));
@@ -32,6 +32,7 @@ public class DataLoader implements CommandLineRunner
         list.add(new Doctor("Jammie","Kibby"));
         list.add(new Doctor("Dell","Menat"));
 
-        doctorRepo.saveAll(list);
+//        doctorRepo.saveAll(list);
+
     }
 }

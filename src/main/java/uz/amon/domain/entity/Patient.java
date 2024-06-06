@@ -36,4 +36,7 @@ public class Patient
 
     @OneToOne(cascade=CascadeType.ALL)
     Complaint complaint;
+
+    private Long currentReplyDoctorChatId;
+
 }
