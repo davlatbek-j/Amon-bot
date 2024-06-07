@@ -22,6 +22,8 @@ public class Doctor
 
     String lastname;
 
+    String speciality;
+
     Long chatId;
 
     @Enumerated(EnumType.STRING)

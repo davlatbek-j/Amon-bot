@@ -3,7 +3,8 @@ package uz.amon.domain.enums;
 public enum DoctorState
 {
     START,
-    COMPLAINT_ANSWER,
+    WRITING_ANSWER_FOR_COMPLAINT,
     REPLY_TO_PATIENT,
-    WRITE_MESSAGE_TO_PATIENT, FINISH
+    WRITE_REPLY_MESSAGE_TO_PATIENT,
+    FINISH
 }

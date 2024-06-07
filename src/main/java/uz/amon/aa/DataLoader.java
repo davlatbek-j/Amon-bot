@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import uz.amon.domain.entity.Doctor;
+import uz.amon.domain.enums.DoctorState;
 import uz.amon.repository.DoctorRepository;
 
 import java.util.ArrayList;
@@ -19,20 +20,25 @@ public class DataLoader implements CommandLineRunner
     public void run(String... args) throws Exception
     {
         List<Doctor> list = new ArrayList<>();
+
         Doctor doctor = new Doctor();
         doctor.setChatId(1762041853L);
-        doctor.setFirstname("Davlatbek");
-        doctor.setLastname("Doctor");
+        doctor.setSpeciality("Невропатолог");
+        doctor.setState(DoctorState.START);
+
+        Doctor doctor2 = new Doctor();
+        doctor2.setChatId(5256030505L);
+        doctor2.setSpeciality("Кардиолог");
+        doctor2.setState(DoctorState.START);
+
         list.add(doctor);
-        list.add(new Doctor("Anna","Stone"));
-        list.add(new Doctor("Jenifer","Lopes"));
-        list.add(new Doctor("Angelina","Jullie"));
-        list.add(new Doctor("Megen","Fidock"));
-        list.add(new Doctor("Ly","Basil"));
-        list.add(new Doctor("Jammie","Kibby"));
-        list.add(new Doctor("Dell","Menat"));
+        list.add(doctor2);
 
-//        doctorRepo.saveAll(list);
+        Doctor doctor3 = new Doctor("Aйбек", "Педиатр");
+        doctor3.setSpeciality("Педиатр");
+        list.add(doctor3);
 
+        doctorRepo.saveAll(list);
     }
+
 }
