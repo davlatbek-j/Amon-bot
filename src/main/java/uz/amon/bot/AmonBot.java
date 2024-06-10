@@ -35,10 +35,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -121,15 +119,17 @@ public class AmonBot extends TelegramLongPollingBot
                 patientFirstnameHandler(update);
                 break;
             case LAST_NAME:
-                patientLastNameHandler(update); //shu yerda kerakli doktorni ham tanlaydi
+                patientLastNameHandler(update);
                 break;
             case PHOTO:
                 patientComplaintPhotoHandler(update);
                 break;
             case COMPLAINT_TEXT:
                 patientComplaintTextHandler(update);
+                break;
             case WRITE_REPLY_MESSAGE:
                 patientReplyMessageHandler(update);
+                break;
         }
 
     }
@@ -153,7 +153,6 @@ public class AmonBot extends TelegramLongPollingBot
             patientReChooseMessageRequest(update);
 
     }
-
 
     private void patientStartHandler(Update update) throws TelegramApiException
     {
@@ -382,7 +381,7 @@ public class AmonBot extends TelegramLongPollingBot
         sendMessage.setChatId(chatId);
 
         if (fromDb.getLanguage().equals(PatientLanguage.UZ))
-            sendMessage.setText(doctor.getSpeciality()+"'ga Analiz rasmini yuboring");
+            sendMessage.setText(doctor.getSpeciality() + "'ga Analiz rasmini yuboring");
         else if (fromDb.getLanguage().equals(PatientLanguage.RU))
             sendMessage.setText("Отправьте фото анализ к " + doctor.getSpeciality());
 
@@ -480,12 +479,22 @@ public class AmonBot extends TelegramLongPollingBot
 
             sendPhoto.setChatId(doctorRepo.findById(doctorId).get().getChatId());
 
+
+            Date lastWritedDate = patientFromDb.getLastMessageDate();
+
+            String lastTime = "Новый, первый раз"; //noviy perviy raz
+            if (lastWritedDate != null)
+                lastTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(lastWritedDate);
+
             String photoPath = complaint.getPhoto().getSystemPath();
             sendPhoto.setPhoto(new InputFile(new java.io.File(photoPath)));
             sendPhoto.setCaption("От : " + patientFromDb.getFirstname() + " " + patientFromDb.getLastname() +
                     "\nТелефон пациента : " + patientFromDb.getPhone() +
-                    "\nСообщение : " + complaint.getMessage()+
-                    "\nСессия: #c" +patientFromDb.getId());
+                    "\nСообщение : " + complaint.getMessage() +
+                    "\n\n\n____________\nПоследние сообщения : " + lastTime +          //Poslednie sobsheniya
+                    "\nСессия: #c" + patientFromDb.getId()+
+                    "\nТема: #т"+complaint.getId()+
+                    "\nЧат: #c"+patientFromDb.getId()+"т"+complaint.getId());
 
 
             InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
@@ -510,6 +519,9 @@ public class AmonBot extends TelegramLongPollingBot
 
             complaint.setStatus(ComplaintStatus.SENDED_WAIT_DOCTOR_ANSWER);
             complaintRepo.save(complaint);
+
+            patientFromDb.setLastMessageDate(new Date());
+            patientRepo.save(patientFromDb);
         }
 
     }
@@ -556,18 +568,23 @@ public class AmonBot extends TelegramLongPollingBot
         SendMessage doctorSendMessage = new SendMessage();
         doctorSendMessage.setChatId(doctorChatId);
         doctorSendMessage.setText("Новое сообщение от пациента :" + patientFromDb.getFirstname() + " " + patientFromDb.getLastname() +
-                "\nНомер телефона: +" + patientFromDb.getPhone() + "\n⬇️⬇️⬇️⬇️"+
-                "\nСессия: #c" +patientFromDb.getId());
+                "\nНомер телефона: +" + patientFromDb.getPhone() + "\n⬇️⬇️⬇️⬇️" +
+                "\n\n____________\nСессия: #c" + patientFromDb.getId());
 
         execute(doctorSendMessage);
 
+        Date lastWritedDate = patientFromDb.getLastMessageDate();
+        String lastTime = "Новый, первый раз"; //noviy perviy raz
+        if (lastWritedDate != null)
+            lastTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(lastWritedDate);
 
         if (message.hasText())
         {
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(doctorChatId);
-            sendMessage.setText("\nСообщение: " + message.getText()+
-                    "\nСессия: #c" +patientFromDb.getId());
+            sendMessage.setText("\nСообщение: " + message.getText() +
+                    "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                    "\n\n____________\nСессия: #c" + patientFromDb.getId());
 
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
             List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -589,10 +606,12 @@ public class AmonBot extends TelegramLongPollingBot
             sendPhoto.setPhoto(new InputFile(message.getPhoto().get(0).getFileId()));
             if (message.getCaption() != null)
             {
-                sendPhoto.setCaption(message.getCaption()+
-                        "\nСессия: #c" +patientFromDb.getId());
-            }else
-                sendPhoto.setCaption("\nСессия: #c" +patientFromDb.getId());
+                sendPhoto.setCaption(message.getCaption() +
+                        "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
+            } else
+                sendPhoto.setCaption("\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
 
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
             List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -613,10 +632,12 @@ public class AmonBot extends TelegramLongPollingBot
             sendDocument.setDocument(new InputFile(message.getDocument().getFileId()));
             if (message.getCaption() != null)
             {
-                sendDocument.setCaption(message.getCaption()+
-                        "\nСессия: #c" +patientFromDb.getId());
-            }else
-                sendDocument.setCaption("\nСессия: #c" +patientFromDb.getId());
+                sendDocument.setCaption(message.getCaption() +
+                        "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
+            } else
+                sendDocument.setCaption("\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
 
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
             List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -650,10 +671,11 @@ public class AmonBot extends TelegramLongPollingBot
 
             if (message.getCaption() != null)
             {
-                sendAudio.setCaption(message.getCaption()+
-                        "\nСессия: #c" +patientFromDb.getId());
-            }else
-                sendAudio.setCaption("\nСессия: #c" +patientFromDb.getId());
+                sendAudio.setCaption(message.getCaption() +
+                        "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
+            } else
+                sendAudio.setCaption("\nСессия: #c" + patientFromDb.getId());
 
 
             execute(sendAudio);
@@ -696,10 +718,12 @@ public class AmonBot extends TelegramLongPollingBot
 
             if (message.getCaption() != null)
             {
-                sendVideo.setCaption(message.getCaption()+
-                        "\nСессия: #c" +patientFromDb.getId());
-            }else
-                sendVideo.setCaption("\nСессия: #c" +patientFromDb.getId());
+                sendVideo.setCaption(message.getCaption() +
+                        "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
+            } else
+                sendVideo.setCaption("\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
 
             execute(sendVideo);
 
@@ -744,11 +768,12 @@ public class AmonBot extends TelegramLongPollingBot
 
             if (message.getCaption() != null)
             {
-                sendVoice.setCaption(message.getCaption()+
-                        "\nСессия: #c" +patientFromDb.getId());
-            }else
-                sendVoice.setCaption("\nСессия: #c" +patientFromDb.getId());
-
+                sendVoice.setCaption(message.getCaption() +
+                        "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
+            } else
+                sendVoice.setCaption("\n\n\n____________\nПоследние сообщения : " + lastTime +
+                        "\nСессия: #c" + patientFromDb.getId());
 
             execute(sendVoice);
         } else
@@ -761,8 +786,10 @@ public class AmonBot extends TelegramLongPollingBot
 
             SendMessage sm = new SendMessage();
             sm.setChatId(String.valueOf(doctorChatId));
-            sm.setText("Нажмите кнопку ниже, чтобы написать ответ"+
-                    "\nСессия: #c" +patientFromDb.getId());
+            sm.setText("Нажмите кнопку ниже, чтобы написать ответ" +
+                    "\n\n\n____________\nПоследние сообщения : " + lastTime +
+                    "\nСессия: #c" + patientFromDb.getId());
+            sm.setReplyToMessageId(message.getMessageId());
 
             InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
             List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -791,6 +818,7 @@ public class AmonBot extends TelegramLongPollingBot
 
         execute(patientSendMessage);
         patientFromDb.setState(PatientState.WAIT_ANSWER_OF_REPLY_MESSAGE);
+        patientFromDb.setLastMessageDate(new Date());
         patientRepo.save(patientFromDb);
     }
 
@@ -906,7 +934,7 @@ public class AmonBot extends TelegramLongPollingBot
             sendMessage.setChatId(doctorChatId);
             sendMessage.setText("Пожалуйста, ответьте на это первым:\n" +
                     complaintRepo.findById(currentComplaintId).get().getMessage() +
-                    "\nСессия: #c" +complaintRepo.findById(complaintId).get().getWriterId());
+                    "\nСессия: #c" + complaintRepo.findById(complaintId).get().getWriterId());
 
             execute(sendMessage);
             return;
@@ -921,8 +949,8 @@ public class AmonBot extends TelegramLongPollingBot
             {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(doctorChatId);
-                sendMessage.setText("Вы не можете ответить на это сообщение, вы уже отклонили это сообщение : \n" + complaint.getMessage()+
-                        "\nСессия: #c" +complaint.getWriterId());
+                sendMessage.setText("Вы не можете ответить на это сообщение, вы уже отклонили это сообщение : \n" + complaint.getMessage() +
+                        "\nСессия: #c" + complaint.getWriterId());
                 execute(sendMessage);
                 return;
             } else if (complaint.getStatus().equals(ComplaintStatus.DOCTOR_ACCEPTED_NOT_ANSWERED))
@@ -933,8 +961,8 @@ public class AmonBot extends TelegramLongPollingBot
             {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(doctorChatId);
-                sendMessage.setText("Вы уже ответили на это сообщение: \n" + complaint.getMessage()+
-                                    "\nСессия: #c" +complaint.getWriterId() );
+                sendMessage.setText("Вы уже ответили на это сообщение: \n" + complaint.getMessage() +
+                        "\nСессия: #c" + complaint.getWriterId());
                 execute(sendMessage);
                 return;
             }
@@ -948,8 +976,8 @@ public class AmonBot extends TelegramLongPollingBot
 
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(doctorChatId);
-            sendMessage.setText("Запишите свой ответ для пациента :\n" + complaint.getMessage()+
-                                "\nСессия: #c" +complaint.getWriterId());
+            sendMessage.setText("Запишите свой ответ для пациента :\n" + complaint.getMessage() +
+                    "\nСессия: #c" + complaint.getWriterId());
 
             execute(sendMessage);
         } else if (data.contains("cancel"))
@@ -961,16 +989,16 @@ public class AmonBot extends TelegramLongPollingBot
 
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(doctorChatId);
-                sendMessage.setText("Сначала необходимо ответить на сообщение:\n" + complaint.getMessage()+
-                                    "\nСессия: #c" +complaint.getWriterId()  );
+                sendMessage.setText("Сначала необходимо ответить на сообщение:\n" + complaint.getMessage() +
+                        "\nСессия: #c" + complaint.getWriterId());
                 execute(sendMessage);
                 return;
             } else if (complaint.getStatus().equals(ComplaintStatus.REJECTED_BY_DOCTOR))
             {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(doctorChatId);
-                sendMessage.setText("Вы уже отклонили это сообщение:\n" + complaint.getMessage()+
-                        "\nСессия: #c" +complaint.getWriterId());
+                sendMessage.setText("Вы уже отклонили это сообщение:\n" + complaint.getMessage() +
+                        "\nСессия: #c" + complaint.getWriterId());
                 execute(sendMessage);
                 return;
 
@@ -978,8 +1006,8 @@ public class AmonBot extends TelegramLongPollingBot
             {
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(doctorChatId);
-                sendMessage.setText("Вы не можете отклонить это сообщение, вы уже ответили:\n" + complaint.getMessage()+
-                        "\nСессия: #c" +complaint.getWriterId());
+                sendMessage.setText("Вы не можете отклонить это сообщение, вы уже ответили:\n" + complaint.getMessage() +
+                        "\nСессия: #c" + complaint.getWriterId());
                 execute(sendMessage);
                 return;
             }
@@ -989,9 +1017,8 @@ public class AmonBot extends TelegramLongPollingBot
 
             Patient patient = patientRepo.findById(complaint.getWriterId()).get();
             patient.setComplaint(null);
-            patient.setState(PatientState.START);
+            patient.setState(PatientState.START);  // TODO----------------------------------------------------
             patientRepo.save(patient);
-
             SendMessage patientMessage = new SendMessage();
 
             patientMessage.setChatId(patient.getChatId());
@@ -1026,8 +1053,8 @@ public class AmonBot extends TelegramLongPollingBot
 
             SendMessage doctorMessage = new SendMessage();
             doctorMessage.setChatId(doctorChatId);
-            doctorMessage.setText("Этот запрос пациента был отменен : \n" + complaint.getMessage()+
-                    "\nСессия: #c" +complaint.getWriterId());
+            doctorMessage.setText("Этот запрос пациента был отменен : \n" + complaint.getMessage() +
+                    "\nСессия: #c" + complaint.getWriterId());
             execute(doctorMessage);
         }
 
@@ -1115,8 +1142,8 @@ public class AmonBot extends TelegramLongPollingBot
 
         SendMessage doctorMessage = new SendMessage();
         doctorMessage.setChatId(doctorChatId);
-        doctorMessage.setText("Спасибо за ответ, ваш ответ доставлен"+
-                "\nСессия: #c" +patient.getId());
+        doctorMessage.setText("Спасибо за ответ, ваш ответ доставлен" +
+                "\nСессия: #c" + patient.getId());
         execute(doctorMessage);
     }
 
@@ -1134,8 +1161,8 @@ public class AmonBot extends TelegramLongPollingBot
 
             SendMessage sendMessageDoctor = new SendMessage();
             sendMessageDoctor.setChatId(doctorChatId);
-            sendMessageDoctor.setText("Отправьте пациенту сообщение любого типа (файл, фото, голос) : " + patientFromDb.getFirstname() + " " + patientFromDb.getLastname()+
-                    "\nСессия: #c" +patientFromDb.getId());
+            sendMessageDoctor.setText("Отправьте пациенту сообщение любого типа (файл, фото, голос) : " + patientFromDb.getFirstname() + " " + patientFromDb.getLastname() +
+                    "\nСессия: #c" + patientFromDb.getId());
             execute(sendMessageDoctor);
 
             Doctor doctorFromDb = doctorRepo.findByChatId(doctorChatId);
@@ -1400,8 +1427,8 @@ public class AmonBot extends TelegramLongPollingBot
 
         SendMessage sendMessageDoctor = new SendMessage();
         sendMessageDoctor.setChatId(doctorChatId);
-        sendMessageDoctor.setText("Сообщение доставлено"+
-                "\nСессия: #c" +patientFromDb.getId());
+        sendMessageDoctor.setText("Сообщение доставлено" +
+                "\nСессия: #c" + patientFromDb.getId());
         execute(sendMessageDoctor);
 
 

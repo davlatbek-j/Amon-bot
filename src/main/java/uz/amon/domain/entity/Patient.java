@@ -8,6 +8,8 @@ import lombok.experimental.FieldDefaults;
 import uz.amon.domain.enums.PatientLanguage;
 import uz.amon.domain.enums.PatientState;
 
+import java.util.Date;
+
 @Data
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -37,6 +39,7 @@ public class Patient
     @OneToOne(cascade=CascadeType.ALL)
     Complaint complaint;
 
-    private Long currentReplyDoctorChatId;
+    Long currentReplyDoctorChatId;
 
+    Date lastMessageDate;
 }

@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import uz.amon.domain.enums.ComplaintStatus;
 
+import java.util.Date;
+
 @Data
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -33,4 +35,14 @@ public class Complaint
 
     @Column(length = 500)
     String answerOfDoctor;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(nullable = false, updatable = false)
+    private Date createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = new Date();
+    }
+
 }
