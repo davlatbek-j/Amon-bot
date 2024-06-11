@@ -35,7 +35,10 @@ public class DataLoader implements CommandLineRunner
         list.add(doctor2);
 
         Doctor doctor3 = new Doctor("Aйбек", "Педиатр");
+//        doctor3.setChatId(6936302773L);
+        doctor3.setState(DoctorState.START);
         doctor3.setSpeciality("Педиатр");
+
         list.add(doctor3);
 
         doctorRepo.saveAll(list);

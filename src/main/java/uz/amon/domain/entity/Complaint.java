@@ -45,4 +45,7 @@ public class Complaint
         this.createdAt = new Date();
     }
 
+    Integer sessionNum;
+
+    Integer themeNum;
 }

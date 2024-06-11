@@ -42,4 +42,5 @@ public class Doctor
 
     Long currentComplaintId;
 
+    Integer lastSessionNumber;
 }
