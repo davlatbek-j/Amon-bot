@@ -18,4 +18,7 @@ public class DoctorCreateDTO {
 
     Long chatId;
 
+    String specialityRu;
+
+    String specialityUz;
 }

@@ -22,7 +22,9 @@ public class Doctor
 
     String lastname;
 
-    String speciality;
+    String specialityRu;
+
+    String specialityUz;
 
     Long chatId;
 

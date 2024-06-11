@@ -340,7 +340,12 @@ public class AmonBot extends TelegramLongPollingBot
         {
             List<InlineKeyboardButton> row = new ArrayList<>();
             InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(doctor.getSpeciality());
+
+            if (fromDb.getLanguage().equals(PatientLanguage.UZ))
+                button.setText(doctor.getSpecialityUz());
+            else if (fromDb.getLanguage().equals(PatientLanguage.RU))
+                button.setText(doctor.getSpecialityRu());
+
             button.setCallbackData("doctor-id" + doctor.getId().toString());
             row.add(button);
             inlineButtons.add(row);
@@ -379,9 +384,9 @@ public class AmonBot extends TelegramLongPollingBot
         sendMessage.setChatId(chatId);
 
         if (patient.getLanguage().equals(PatientLanguage.UZ))
-            sendMessage.setText(doctor.getSpeciality() + "'ga Analiz rasmini yuboring");
+            sendMessage.setText(doctor.getSpecialityUz() + "ga Analiz rasmini yuboring");
         else if (patient.getLanguage().equals(PatientLanguage.RU))
-            sendMessage.setText("Отправьте фото анализ к " + doctor.getSpeciality());
+            sendMessage.setText("Отправьте фото анализ к " + doctor.getSpecialityRu());
 
         patient.setState(PatientState.PHOTO);
         patientRepo.save(patient);
@@ -600,11 +605,6 @@ public class AmonBot extends TelegramLongPollingBot
         Long doctorChatId = patientFromDb.getCurrentReplyDoctorChatId();
 
 
-//        Doctor doctorFromDb = doctorRepo.findByChatId(doctorChatId);
-//        doctorFromDb.setState(DoctorState.REPLY_TO_PATIENT);
-//        doctorRepo.save(doctorFromDb);
-
-
         SendMessage doctorSendMessage = new SendMessage();
         doctorSendMessage.setChatId(doctorChatId);
         doctorSendMessage.setText("Новое сообщение от пациента :" + patientFromDb.getFirstname() + " " + patientFromDb.getLastname() +
@@ -617,7 +617,7 @@ public class AmonBot extends TelegramLongPollingBot
         Date lastWritedDate = patientFromDb.getLastMessageDate();
         String lastTime = "Новый, первый раз"; //noviy perviy raz
         if (lastWritedDate != null)
-            lastTime = new SimpleDateFormat("yyyy-MM-dd HH:mm").format(lastWritedDate);
+            lastTime = new SimpleDateFormat("yyyy-MM-dd    HH:mm").format(lastWritedDate);
 
 
         Complaint complaint = patientFromDb.getComplaint();
@@ -917,7 +917,7 @@ public class AmonBot extends TelegramLongPollingBot
         {
             List<InlineKeyboardButton> row = new ArrayList<>();
             InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(doctor.getSpeciality());
+            button.setText(doctor.getSpecialityRu());
             button.setCallbackData("doctor-id" + doctor.getId().toString());
             row.add(button);
             inlineButtons.add(row);
@@ -1166,9 +1166,9 @@ public class AmonBot extends TelegramLongPollingBot
 
         patientMessage.setChatId(patient.getChatId());
         if (patient.getLanguage().equals(PatientLanguage.RU))
-            patientMessage.setText("Ответ врача:\n" + answerOfDoctor);
+            patientMessage.setText("Ответ врача "+doctor.getSpecialityRu()+" :\n" + answerOfDoctor);
         else
-            patientMessage.setText("Shifokor javobi:\n" + answerOfDoctor);
+            patientMessage.setText( doctor.getSpecialityUz()+" javobi:\n" + answerOfDoctor);
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();

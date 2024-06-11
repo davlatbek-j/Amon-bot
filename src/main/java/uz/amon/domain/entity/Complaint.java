@@ -23,7 +23,7 @@ public class Complaint
     @OneToOne
     Photo photo;
 
-    @Column(length = 500)
+    @Column(length = 800)
     String message;
 
     Long writerId;
@@ -33,7 +33,7 @@ public class Complaint
     @Enumerated(EnumType.STRING)
     ComplaintStatus status;
 
-    @Column(length = 500)
+    @Column(length = 800)
     String answerOfDoctor;
 
     @Temporal(TemporalType.TIMESTAMP)

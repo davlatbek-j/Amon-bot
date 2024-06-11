@@ -23,12 +23,14 @@ public class DataLoader implements CommandLineRunner
 
         Doctor doctor = new Doctor();
         doctor.setChatId(1762041853L);
-        doctor.setSpeciality("Невропатолог");
+        doctor.setSpecialityRu("Невропатолог");
+        doctor.setSpecialityUz("Nevropatolog");
         doctor.setState(DoctorState.START);
 
         Doctor doctor2 = new Doctor();
         doctor2.setChatId(5256030505L);
-        doctor2.setSpeciality("Кардиолог");
+        doctor2.setSpecialityRu("Кардиолог");
+        doctor2.setSpecialityUz("Kardiolog");
         doctor2.setState(DoctorState.START);
 
         list.add(doctor);
@@ -37,7 +39,8 @@ public class DataLoader implements CommandLineRunner
         Doctor doctor3 = new Doctor("Aйбек", "Педиатр");
 //        doctor3.setChatId(6936302773L);
         doctor3.setState(DoctorState.START);
-        doctor3.setSpeciality("Педиатр");
+        doctor3.setSpecialityRu("Педиатр");
+        doctor3.setSpecialityUz("Pediatr");
 
         list.add(doctor3);
 
