@@ -76,7 +76,6 @@ public class AmonBot extends TelegramLongPollingBot
             else
             {
                 patientMessageHandler(update);
-                return;
             }
         } else if (update.hasCallbackQuery())
         {
@@ -98,10 +97,27 @@ public class AmonBot extends TelegramLongPollingBot
     {
         Message message = update.getMessage();
         Long chatId = update.getMessage().getChatId();
+
         PatientState state = patientRepo.findPatientStateByChatId(chatId);
 
         if (message.hasText() && message.getText().equals("/start"))
         {
+/*            if (patientRepo.existsByChatId(chatId))
+            {
+                Patient patient = patientRepo.findByChatId(chatId);
+                if (patient.getState()!=null && patient.getState()==PatientState.WAIT_ANSWER_OF_COMPLAINT)
+                {
+                    SendMessage sendMessage = new SendMessage();
+                    sendMessage.setChatId(chatId);
+                    PatientLanguage lang = patient.getLanguage();
+                    if (lang==PatientLanguage.UZ)
+                        sendMessage.setText("Uzur, shifokordan javob olmagunizcha botdan foydalana olmaysiz!");
+                    else if (lang==PatientLanguage.RU)
+                        sendMessage.setText("К сожалению, вы не сможете использовать бота, пока не получите ответ от врача!");
+                    execute(sendMessage);
+                    return;
+                }
+            }*/
             state = PatientState.START;
         }
 

@@ -19,32 +19,34 @@ public class DataLoader implements CommandLineRunner
     @Override
     public void run(String... args) throws Exception
     {
-        List<Doctor> list = new ArrayList<>();
 
-        Doctor doctor = new Doctor();
-        doctor.setChatId(1762041853L);
-        doctor.setSpecialityRu("Невропатолог");
-        doctor.setSpecialityUz("Nevropatolog");
-        doctor.setState(DoctorState.START);
+//        Doctor doctor = new Doctor();
+//        doctor.setChatId(104800996L);
+//        doctor.setSpecialityRu("Невропатолог");
+//        doctor.setSpecialityUz("Nevropatolog");
+//        doctor.setState(DoctorState.START);
+
+
+        Doctor doctor3 = new Doctor();
+        doctor3.setChatId(104800996L);
+        doctor3.setSpecialityRu("Педиатр-Невропатолог");
+        doctor3.setSpecialityUz("Pediatr-Nevropatolog");
+        doctor3.setState(DoctorState.START);
+
+        if (!doctorRepo.existsByChatId(doctor3.getChatId()))
+            doctorRepo.save(doctor3);
+
 
         Doctor doctor2 = new Doctor();
-        doctor2.setChatId(5256030505L);
+        doctor2.setChatId(1762041853L);
         doctor2.setSpecialityRu("Кардиолог");
         doctor2.setSpecialityUz("Kardiolog");
         doctor2.setState(DoctorState.START);
 
-        list.add(doctor);
-        list.add(doctor2);
 
-        Doctor doctor3 = new Doctor();
-        doctor3.setChatId(1743121227L);
-        doctor3.setState(DoctorState.START);
-        doctor3.setSpecialityRu("Педиатр");
-        doctor3.setSpecialityUz("Pediatr");
+        if (!doctorRepo.existsByChatId(doctor2.getChatId()))
+            doctorRepo.save(doctor2);
 
-        list.add(doctor3);
-
-        doctorRepo.saveAll(list);
     }
 
 }
