@@ -24,12 +24,10 @@ public class Photo
 
     String systemPath;
 
-    String httpUrl;
 
-    public Photo(String name, String systemPath, String httpUrl) {
+    public Photo(String name, String systemPath) {
         this.name = name;
         this.systemPath = systemPath;
-        this.httpUrl = httpUrl;
     }
 
 }

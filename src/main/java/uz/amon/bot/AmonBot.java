@@ -74,7 +74,10 @@ public class AmonBot extends TelegramLongPollingBot
             if (doctorService.isDoctor(chatId))
                 doctorMessageHandler(update);
             else
+            {
                 patientMessageHandler(update);
+                return;
+            }
         } else if (update.hasCallbackQuery())
         {
             CallbackQuery callbackQuery = update.getCallbackQuery();
@@ -123,7 +126,7 @@ public class AmonBot extends TelegramLongPollingBot
                 patientComplaintPhotoHandler(update);
                 break;
             case COMPLAINT_TEXT:
-                patientComplaintTextHandler(update);
+                patientComplaintConfirmRequest(update);
                 break;
             case WRITE_REPLY_MESSAGE:
                 patientReplyMessageHandler(update);
@@ -149,6 +152,8 @@ public class AmonBot extends TelegramLongPollingBot
             patientReplyMessageRequest(update);
         else if (data.equals("patient-re-choose-doctor"))
             patientReChooseMessageRequest(update);
+        else if (data.contains("confirm-complaint") || data.contains("edit-complaint"))
+            patientComplaintConfirmCallBackHandler(update);
 
     }
 
@@ -475,7 +480,7 @@ public class AmonBot extends TelegramLongPollingBot
             input.close();
 
 
-            Photo photo = new Photo(fileName, targetPath, "http://localhost:8080/complaint/image/bla-bla");
+            Photo photo = new Photo(fileName, targetPath);
             Photo saved = photoRepo.save(photo);
 
             Complaint complaintOfPatient = patientFromDb.getComplaint();
@@ -513,6 +518,7 @@ public class AmonBot extends TelegramLongPollingBot
         execute(sendMessage);
     }
 
+    //Please do not delete even if it is not used
     private void patientComplaintTextHandler(Update update) throws TelegramApiException
     {
         Message message = update.getMessage();
@@ -523,7 +529,6 @@ public class AmonBot extends TelegramLongPollingBot
             Complaint complaint = patientFromDb.getComplaint();
             complaint.setMessage(message.getText());
             complaint.setStatus(ComplaintStatus.CREATED_NOT_SENDED);
-
 
             Long doctorId = complaint.getDoctorId();
             Doctor doctor = doctorRepo.findById(doctorId).get();
@@ -575,6 +580,7 @@ public class AmonBot extends TelegramLongPollingBot
             else if (patientFromDb.getLanguage().equals(PatientLanguage.RU))
                 sendMessage.setText("Ваша жалоба отправлена, дождитесь ответа врача");
 
+//            sendMessage.setReplyMarkup(null);
             patientFromDb.setState(PatientState.WAIT_ANSWER_OF_REPLY_MESSAGE);
             patientRepo.save(patientFromDb);
             execute(sendMessage);
@@ -628,6 +634,209 @@ public class AmonBot extends TelegramLongPollingBot
 
             patientFromDb.setLastMessageDate(new Date());
             patientRepo.save(patientFromDb);
+        }
+
+    }
+
+    private void patientComplaintConfirmRequest(Update update) throws TelegramApiException
+    {
+        Message message = update.getMessage();
+        if (message.hasText())
+        {
+            Long chatId = message.getChatId();
+            Patient patient = patientRepo.findByChatId(chatId);
+            Complaint complaint = patient.getComplaint();
+            complaint.setMessage(message.getText());
+            complaint.setStatus(ComplaintStatus.NOT_CONFIRMED);
+
+            complaintRepo.save(complaint);
+
+            patient.setState(PatientState.CONFIRM_COMPLAINT);
+            patient.setConfirmComplaint(false);
+            patientRepo.save(patient);
+
+            PatientLanguage lang = patient.getLanguage();
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            if (lang == PatientLanguage.UZ)
+                sendMessage.setText("Murojaatingiz shifokorga quyidagi ko'rinishda yetkaziladi , Iltimos murojatingizni tasdiqlang :");
+            else if (lang == PatientLanguage.RU)
+                sendMessage.setText("Ваш запрос будет доставлен врачу в следующей форме. Пожалуйста, подтвердите свой запрос:");
+
+            execute(sendMessage);
+
+
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(chatId);
+            String photoPath = complaint.getPhoto().getSystemPath();
+            sendPhoto.setPhoto(new InputFile(new java.io.File(photoPath)));
+            sendPhoto.setCaption(complaint.getMessage());
+
+            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> inlineButtons = new ArrayList<>();
+            List<InlineKeyboardButton> buttonList1 = new ArrayList<>();
+            InlineKeyboardButton confirm = new InlineKeyboardButton();
+            InlineKeyboardButton edit = new InlineKeyboardButton();
+
+
+            if (lang == PatientLanguage.UZ)
+            {
+                confirm.setText("Tasdiqlash✅");
+                edit.setText("O'zgartirish✏️");
+            } else if (lang == PatientLanguage.RU)
+            {
+                confirm.setText("Подтверждать✅");
+                edit.setText("Редактировать✏️");
+            }
+
+            confirm.setCallbackData("confirm-complaint" + complaint.getId());
+            edit.setCallbackData("edit-complaint" + complaint.getId());
+
+
+            buttonList1.add(confirm);
+            buttonList1.add(edit);
+            inlineButtons.add(buttonList1);
+            inlineKeyboardMarkup.setKeyboard(inlineButtons);
+            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
+
+            execute(sendPhoto);
+        }
+
+    }
+
+    private void patientComplaintConfirmCallBackHandler(Update update) throws TelegramApiException
+    {
+        CallbackQuery callbackQuery = update.getCallbackQuery();
+        Long chatId = callbackQuery.getMessage().getChatId();
+        String data = callbackQuery.getData();
+
+        Patient patient = patientRepo.findByChatId(chatId);
+
+        if (data.contains("confirm-complaint"))
+        {
+            long complaintId = Long.parseLong(data.replace("confirm-complaint", ""));
+            Complaint complaint = complaintRepo.findById(complaintId).get();
+
+            if (patient.isConfirmComplaint())
+                return;
+
+            patient.setConfirmComplaint(true);
+            patientRepo.save(patient);
+
+            complaint.setStatus(ComplaintStatus.CONFIRMED);
+            complaintRepo.save(complaint);
+
+            Long doctorId = complaint.getDoctorId();
+            Doctor doctor = doctorRepo.findById(doctorId).get();
+
+
+            //Bu klient bu doktorga oldin ham yozganmi yoki yo'qmi ya'ni bu klient bu doktor uchun yangi klientmi?
+            boolean existsByDoctorIdAndWriterId = patientSessionNumberRepo.existsByDoctorIdAndPatientId(doctorId, patient.getId());
+
+            if (existsByDoctorIdAndWriterId)
+            {
+                //agar bu klient bu doktorga oldin ham yozgan bo'lsa
+                PatientSessionAndThemeNumber sessionAndThemeNumber = patientSessionNumberRepo.findByPatientIdAndDoctorId(patient.getId(), doctorId);
+                complaint.setSessionNum(sessionAndThemeNumber.getSessionNumber());
+
+                //bu klient bu doktor bilan oxirgi marta n-raqamli temada gaplashgan....
+
+                sessionAndThemeNumber.setLastThemeNumber(sessionAndThemeNumber.getLastThemeNumber() + 1);
+                complaint.setThemeNum(sessionAndThemeNumber.getLastThemeNumber());
+
+
+                patientSessionNumberRepo.save(sessionAndThemeNumber);
+            } else // agar bu klient bu doktorga 1-marta yozayotgan bo'lsa
+            {
+                PatientSessionAndThemeNumber sessionNumber = new PatientSessionAndThemeNumber();
+                sessionNumber.setDoctorId(doctorId);
+                sessionNumber.setPatientId(patient.getId());
+                //doktorda shu vaqtgacha n ta sessiya ochilgan bo'lsa endi buni n+1 sessiay boladi
+                sessionNumber.setSessionNumber(doctor.getLastSessionNumber() == null ? 1 : doctor.getLastSessionNumber() + 1);
+
+                //Agar bu klient bu doktorga 1-marta yozayotgan bo'lsa bo'lsa tema nomeri 1 boladi
+                sessionNumber.setLastThemeNumber(1);
+
+                doctor.setLastSessionNumber(sessionNumber.getSessionNumber());
+                doctorRepo.save(doctor);
+
+                patientSessionNumberRepo.save(sessionNumber);
+
+                complaint.setSessionNum(sessionNumber.getSessionNumber());
+                complaint.setThemeNum(sessionNumber.getLastThemeNumber());
+            }
+            complaintRepo.save(complaint);
+
+
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+
+            if (patient.getLanguage().equals(PatientLanguage.UZ))
+                sendMessage.setText("Shikoyatingiz yuborildi, iltimos shifokor javobini kuting");
+            else if (patient.getLanguage().equals(PatientLanguage.RU))
+                sendMessage.setText("Ваша жалоба отправлена, дождитесь ответа врача");
+
+            patient.setState(PatientState.WAIT_ANSWER_OF_COMPLAINT);
+            patientRepo.save(patient);
+            execute(sendMessage);
+
+
+            SendPhoto sendPhoto = new SendPhoto();
+
+            sendPhoto.setChatId(doctorRepo.findById(doctorId).get().getChatId());
+
+            Date lastWritedDate = patient.getLastMessageDate();
+
+            String lastTime = "Новый, первый раз"; //noviy perviy raz
+            if (lastWritedDate != null)
+                lastTime = new SimpleDateFormat("yyyy-MM-dd  HH:mm").format(lastWritedDate);
+
+            String photoPath = complaint.getPhoto().getSystemPath();
+            sendPhoto.setPhoto(new InputFile(new java.io.File(photoPath)));
+
+            sendPhoto.setCaption("От : " + patient.getFullName() +
+                    "\nТелефон пациента : +" + patient.getPhone() +
+                    "\nСообщение : " + complaint.getMessage() +
+                    "\n\n\n____________\nПоследние сообщения : " + lastTime +          //Poslednie sobsheniya
+                    "\nСессия: #c" + complaint.getSessionNum() +                          //Sessiya
+                    "\nТема: #т" + complaint.getThemeNum() +
+                    "\nЧат: #c" + complaint.getSessionNum() + "т" + complaint.getThemeNum()
+            );
+
+
+            InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> inlineButtons = new ArrayList<>();
+            List<InlineKeyboardButton> buttonList1 = new ArrayList<>();
+            InlineKeyboardButton ok = new InlineKeyboardButton();
+            InlineKeyboardButton cancel = new InlineKeyboardButton();
+            ok.setText("Ответить");
+            cancel.setText("Отклонить");
+
+            ok.setCallbackData("ok" + complaint.getId());
+            cancel.setCallbackData("cancel" + complaint.getId());
+
+
+            buttonList1.add(ok);
+            buttonList1.add(cancel);
+            inlineButtons.add(buttonList1);
+            inlineKeyboardMarkup.setKeyboard(inlineButtons);
+            sendPhoto.setReplyMarkup(inlineKeyboardMarkup);
+
+            execute(sendPhoto);
+
+
+            patient.setLastMessageDate(new Date());
+            patientRepo.save(patient);
+
+        }
+        else
+        {
+            if (patient.isConfirmComplaint())
+                return;
+            patient.setConfirmComplaint(true);
+            patientRepo.save(patient);
+
+            patientComplaintPhotoRequest(chatId);
         }
 
     }

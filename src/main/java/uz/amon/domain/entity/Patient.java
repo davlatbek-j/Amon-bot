@@ -41,4 +41,6 @@ public class Patient
     Long currentReplyDoctorChatId;
 
     Date lastMessageDate;
+
+    boolean isConfirmComplaint;
 }
