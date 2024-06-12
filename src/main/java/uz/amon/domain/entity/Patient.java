@@ -21,9 +21,8 @@ public class Patient
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    String firstname;
+    String fullName;
 
-    String lastname;
 
     @Column(unique=true)
     String phone;

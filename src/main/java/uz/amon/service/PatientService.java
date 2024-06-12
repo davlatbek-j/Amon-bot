@@ -42,8 +42,7 @@ public class PatientService {
             return new ApiResponse<>(null, "Patient is not found with this id");
         }
         Patient patient = optionalPatient.get();
-        patient.setFirstname(patientUpdateDTO.getFirstname());
-        patient.setLastname(patientUpdateDTO.getLastname());
+        patient.setFullName(patientUpdateDTO.getFirstname());
         patient.setPhone(patientUpdateDTO.getPhone());
         PatientResponseDTO responseDTO = modelMapper.map(patientRepository.save(patient), PatientResponseDTO.class);
         return new ApiResponse<>(responseDTO, "success");
