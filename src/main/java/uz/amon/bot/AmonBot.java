@@ -1807,5 +1807,4 @@ public class AmonBot extends TelegramLongPollingBot
         doctorFromDb.setCurrentReplyPatientChatId(null);
         doctorRepo.save(doctorFromDb);
     }
-
 }
